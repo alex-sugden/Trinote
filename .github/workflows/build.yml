@@ -1,0 +1,47 @@
+name: Build iOS IPA with XcodeGen
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: xcodegen generate
+
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Build Archive
+        run: |
+          xcodebuild archive \
+            -project Trinote.xcodeproj \
+            -scheme Trinote \
+            -destination "generic/platform=iOS" \
+            -archivePath $PWD/build/Trinote.xcarchive \
+            -allowProvisioningUpdates \
+            CODE_SIGN_STYLE="Automatic"
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath $PWD/build/Trinote.xcarchive \
+            -exportOptionsPath ExportOptions.plist \
+            -exportPath $PWD/build \
+            -allowProvisioningUpdates
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-ipa
+          path: build/*.ipa
